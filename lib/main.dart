@@ -142,6 +142,12 @@ void onStart(ServiceInstance service) async {
           ),
         );
 
+        SharedPreferences preferences = await SharedPreferences.getInstance();
+        await preferences.reload();
+        final log = preferences.getStringList('log') ?? <String>[];
+        log.add(DateTime.now().toIso8601String());
+        await preferences.setStringList('log', log);
+
         // if you don't using custom notification, uncomment this
         // service.setForegroundNotificationInfo(
         //   title: "My App Service",
