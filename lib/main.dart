@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:ui';
+import 'package:telephony/telephony.dart';
 
 // import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
@@ -8,6 +9,17 @@ import 'package:flutter_background_service/flutter_background_service.dart';
 import 'package:flutter_background_service_android/flutter_background_service_android.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+// Must be on top level
+onBackgroundMessage(SmsMessage message) async {
+  // Handle background message
+  debugPrint("onBackgroundMessage called");
+  // Use plugins
+  // Vibration.vibrate(duration: 500);
+  print(message.address); //+977981******67, sender nubmer
+  print(message.body); //sms text
+  print(message.date); //1659690242000, timestamp
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -190,6 +202,53 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
+  String _message = "";
+  final telephony = Telephony.instance;
+
+  @override
+  void initState() {
+    initPlatformState();
+    super.initState();
+  }
+
+  onMessage(SmsMessage message) async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    await preferences.reload();
+    final log = preferences.getStringList('log') ?? <String>[];
+    log.add(message.body ?? "Yechi");
+    await preferences.setStringList('log', log);
+
+    print(message.address); //+977981******67, sender nubmer
+    print(message.body); //sms text
+    print(message.date); //1659690242000, timestamp
+    setState(() {
+      _message = message.body ?? "Error reading message body.";
+    });
+  }
+
+  onSendStatus(SendStatus status) {
+    setState(() {
+      _message = status == SendStatus.SENT ? "sent" : "delivered";
+    });
+  }
+
+  // Platform messages are asynchronous, so we initialize in an async method.
+  Future<void> initPlatformState() async {
+    // Platform messages may fail, so we use a try/catch PlatformException.
+    // If the widget was removed from the tree while the asynchronous platform
+    // message was in flight, we want to discard the reply rather than calling
+    // setState to update our non-existent appearance.
+
+    final bool? result = await telephony.requestPhoneAndSmsPermissions;
+
+    if (result != null && result) {
+      telephony.listenIncomingSms(
+          onNewMessage: onMessage, onBackgroundMessage: onBackgroundMessage);
+    }
+
+    if (!mounted) return;
+  }
+
   String text = "Stop Service";
   @override
   Widget build(BuildContext context) {
